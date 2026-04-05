@@ -5,6 +5,9 @@ services:
     build: ./db
     container_name: postgres_db
     restart: always
+    # Postgres only applies POSTGRES_USER/PASSWORD on first init of postgres_data.
+    # If you change database.username/password in configuration.json, reset the volume
+    # (docker compose down -v) or ALTER USER ... PASSWORD in psql, or auth will fail.
     environment:
       POSTGRES_DB: app_db
     ports:
