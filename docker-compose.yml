@@ -2,17 +2,16 @@ version: "3.9"
 
 services:
   db:
-    image: postgres:15
+    build: ./db
     container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: app_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./configuration.json:/configuration.json:ro
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   backend:
@@ -22,11 +21,12 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/app_db
+      DB_HOST: db
     ports:
       - "5000:5000"
     volumes:
       - ./backend:/app
+      - ./configuration.json:/app/configuration.json:ro
 
   frontend:
     build: ./frontend
