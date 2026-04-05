@@ -1,23 +1,30 @@
-import logo from './logo.svg';
+import { NavLink, Route, Routes } from 'react-router-dom';
 import './App.css';
+import CreateStudentPage from './CreateStudentPage';
+import StudentLookupPage from './StudentLookupPage';
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+      <nav className="app-nav" aria-label="Main">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
         >
-          Learn React
-        </a>
-      </header>
+          Look up
+        </NavLink>
+        <NavLink
+          to="/students/new"
+          className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+        >
+          Create student
+        </NavLink>
+      </nav>
+      <Routes>
+        <Route path="/" element={<StudentLookupPage />} />
+        <Route path="/students/new" element={<CreateStudentPage />} />
+      </Routes>
     </div>
   );
 }
