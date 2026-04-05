@@ -2,85 +2,190 @@
 
 ## Overview
 
-This project is a simple Dockerized web application. It demonstrates how to package a lightweight web app into a Docker container for easy deployment and portability.
+This project is a full-stack Dockerized web application with:
 
-The application includes a basic backend (likely Python-based), along with static files and HTML templates.
+* A Flask backend (Python)
+* A React frontend (Create React App)
+* A Postgres database
+
+You can run it either with Docker Compose or using plain `docker run` commands.
 
 ---
 
 ## Project Structure
 
-* app.py              Main application entry point
-* Dockerfile          Instructions to build the Docker image
-* requirements.txt    Python dependencies
-* static/             Static assets (CSS, JavaScript, images)
-* templates/          HTML templates
+* backend/            Flask API
+  * app.py
+  * Dockerfile
+  * requirements.txt
+* frontend/           React app
+  * Dockerfile
+  * package.json
+* db/
+  * init.sql          Optional DB initialization script
+* docker-compose.yml  Compose setup for local dev
 
 ---
 
 ## Requirements
 
 * Docker installed
-* (Optional) Python 3.x for running locally
+* (Optional) Python 3.x and Node.js for running parts locally
 
 ---
 
-## Running with Docker
+## Running with docker run (without Compose)
 
-1. Clone the repository
+1. Create a user-defined network (containers can resolve each other by name)
 
-   git clone [https://github.com/mapellegrini/docker-webapp.git](https://github.com/mapellegrini/docker-webapp.git)
-   cd docker-webapp
+```bash
+docker network create webapp-net || true
+```
 
-2. Build the Docker image
+2. Start Postgres
 
-   docker build -t docker-webapp .
+```bash
+docker run -d --name postgres_db \
+  --network webapp-net \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=app_db \
+  -p 5432:5432 \
+  -v postgres_data:/var/lib/postgresql/data \
+  -v /home/mark/code/docker-webapp/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro \
+  postgres:15
+```
 
-3. Run the container
+3. Build and run the backend (Flask)
 
-   docker run -d -p 5000:5000 docker-webapp
+```bash
+# Build image
+docker build -t flask-backend /home/mark/code/docker-webapp/backend
 
-4. Open in your browser
+# Run container
+docker run -d --name flask_backend \
+  --network webapp-net \
+  -e DATABASE_URL=postgresql://postgres:postgres@postgres_db:5432/app_db \
+  -p 5000:5000 \
+  flask-backend
+```
 
-   [http://localhost:5000](http://localhost:5000)
+4. Build and run the frontend (React)
+
+```bash
+# Build image
+docker build -t react-frontend /home/mark/code/docker-webapp/frontend
+
+# Run container
+docker run -d --name react_frontend \
+  --network webapp-net \
+  -e HOST=0.0.0.0 \
+  -e PORT=3000 \
+  -e CHOKIDAR_USEPOLLING=true \
+  -p 3000:3000 \
+  react-frontend
+```
+
+5. Open in your browser
+
+* Backend API: http://localhost:5000
+* Frontend UI: http://localhost:3000
 
 ---
 
-## Running Locally (Without Docker)
+## Running with Docker Compose (alternative)
 
-1. Install dependencies
+1. Start all services (db, backend, frontend)
 
-   pip install -r requirements.txt
+```bash
+docker compose up --build
+```
 
-2. Run the application
+* Backend API: http://localhost:5000
+* Frontend UI: http://localhost:3000
 
-   python app.py
+2. Run in the background (detached)
+
+```bash
+docker compose up --build -d
+```
+
+3. View logs
+
+```bash
+docker compose logs -f
+# or a single service
+docker compose logs -f backend
+```
+
+4. Rebuild a single service after changes
+
+```bash
+docker compose up --build backend
+```
+
+5. Stop and remove containers (preserve DB volume)
+
+```bash
+docker compose down
+```
+
+6. Stop and remove containers + named volumes (wipes DB)
+
+```bash
+docker compose down -v
+```
+
+Notes
+* The compose file mounts `./backend` and `./frontend` into containers for rapid local development.
+* Postgres data persists in the named volume `postgres_data` unless removed with `-v`.
+
+---
+
+## Development tips (optional)
+
+* Rebuild an image after code changes:
+
+```bash
+docker build -t flask-backend /home/mark/code/docker-webapp/backend
+docker build -t react-frontend /home/mark/code/docker-webapp/frontend
+```
+
+* Mount local source for rapid backend iteration (no restart strategy included here):
+
+```bash
+docker run --rm --name flask_backend_dev \
+  --network webapp-net \
+  -e DATABASE_URL=postgresql://postgres:postgres@postgres_db:5432/app_db \
+  -p 5000:5000 \
+  -v /home/mark/code/docker-webapp/backend:/app \
+  flask-backend
+```
 
 ---
 
 ## Configuration
 
-* Default port is 5000
-* To use a different port:
+* Backend listens on port 5000
+* Frontend listens on port 3000
+* Database URL for backend:
 
-  docker run -p 8080:5000 docker-webapp
+```text
+postgresql://postgres:postgres@postgres_db:5432/app_db
+```
 
 ---
 
 ## Notes
 
-* Rebuild the Docker image after making code changes
-* You can mount the current directory for development:
-
-  docker run -p 5000:5000 -v %cd%:/app docker-webapp
+* The `webapp-net` network lets containers talk by their `--name` (e.g., `postgres_db`).
+* If you prefer using a host Postgres, set `DATABASE_URL` hostname to `localhost` and ensure port `5432` is accessible from the container (e.g., use `--network host` on Linux with care for port collisions).
 
 ---
 
 ## Future Improvements
 
-* Add Docker Compose support
-* Add environment variable configuration
-* Use a production server (e.g., Gunicorn)
+* Use a production WSGI server for Flask (e.g., Gunicorn)
 * Add CI/CD integration
 
 ---
